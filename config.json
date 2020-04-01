@@ -1,0 +1,17 @@
+{
+"p4port":"ssl:localhost:1666",
+"p4user":"perforce",
+"p4password":"",
+"p4ticket":"",
+"p4root":"/opt/perforce/",
+"p4dctl":"/usr/bin/p4dctl",
+"p4d":"/usr/local/bin/p4d",
+"p4backupdir":"/home/p4backup/",
+"p4backupprefix":"perforce",
+"dest_addr":"root@localhost",
+"sender_addr":"perforce@localhost",
+"sender_password":"",
+"smtphost":"localhost",
+"smtpport":465,
+"smtptls":false
+}
