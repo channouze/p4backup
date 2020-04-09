@@ -3,7 +3,7 @@ A small backup script for perforce instances which does not require p4api nor p4
 
 Supports checkpointing, verifying checkpoints, and archiving the whole depot.
 
-usage: backup-p4root.py [-h] [-v] [-c] [-b]
+usage: p4backup.py [-h] [-v] [-c] [-b]
 
 optional arguments:
 
