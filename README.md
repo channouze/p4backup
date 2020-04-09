@@ -1,5 +1,5 @@
 # p4backup
-A small backup script for perforce instances which does not require p4api.
+A small backup script for perforce instances which does not require p4api nor p4dctl.
 
 Supports checkpointing, verifying checkpoints, and archiving the whole depot.
 
