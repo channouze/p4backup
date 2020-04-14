@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-import sys
+import os, sys
 import base64
 import json
 import argparse
@@ -75,7 +75,7 @@ class p4backup(object):
                 self.archive(p4d, p4root, backupprefix, motd_backup_file, lfile)
 
             print("Sending e-mail...")
-            self.sendmail(smtphost, smtpport, smtptls, to_addr, from_addr, sender_password, clientid, access_token)
+            self.sendmail(args, smtphost, smtpport, smtptls, to_addr, from_addr, sender_password, clientid, access_token)
 
         lfile.close()
     
@@ -173,7 +173,7 @@ class p4backup(object):
 
         print(self.tmsg)
         
-    def sendmail(self, smtphost, smtpport, smtptls, to_addr, sender_addr, sender_password, clientid, access_token):
+    def sendmail(self, args, smtphost, smtpport, smtptls, to_addr, sender_addr, sender_password, clientid, access_token):
     
         if (len(to_addr) > 3 and '@' in to_addr):
                   
@@ -185,11 +185,15 @@ class p4backup(object):
             m.set_default_type('text/plain')
 
             # Backup run mode detection
-            subject = "Backup/Verify"
-            if (len(self.vmsg) == 0):
+            subject = "Unknown operation" 
+            if args.backup:
                 subject = "Backup"
-            elif (len(self.cmsg) == 0 or len(self.tmsg) == 0):
+            if args.verify:
                 subject = "Verify"
+            if args.checkpoint:
+                subject = "Checkpoint"
+                
+            subject += " (" + os.uname()[1] + ")"
 
             # SUCCESS or FAILURE
             if ( self.verr or self.cerr or self.terr ):
