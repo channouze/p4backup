@@ -7,19 +7,13 @@ from datetime import datetime, timezone, timedelta
 from subprocess import Popen, PIPE
 from smtplib import SMTP, SMTP_SSL, ssl
 from email.message import EmailMessage
-
+from oauth2 import oauth2
 
 TICKET_INVALID = "Invalid P4 Ticket"
 
-class p4backup(object):
+class P4Backup(object):
 
     def __init__(self):
-
-        parser = argparse.ArgumentParser()
-        parser.add_argument("-v", "--verify", help="Runs p4 verify", action="store_true")
-        parser.add_argument("-c", "--checkpoint", help="Runs p4 checkpoint", action="store_true")
-        parser.add_argument("-b", "--backup", help="Runs full backup", action="store_true")
-        args = parser.parse_args()
 
         self.verr = False
         self.cerr = False
@@ -28,8 +22,15 @@ class p4backup(object):
         self.cmsg = ''
         self.tmsg = ''
 
-        self.main(args)
-
+    def parse_arguments(self):
+        
+        parser = argparse.ArgumentParser()
+        parser.add_argument("-v", "--verify", help="Runs p4 verify", action="store_true")
+        parser.add_argument("-c", "--checkpoint", help="Runs p4 checkpoint", action="store_true")
+        parser.add_argument("-b", "--backup", help="Runs full backup", action="store_true")
+        
+        return parser.parse_args()
+    
     def main(self, args):
         
         with open('config.json') as json_data_file:
@@ -106,14 +107,14 @@ class p4backup(object):
                 print("ERROR:\n" + stderr)
                 self.verr = True
                 self.vmsg += stderr + "\n"
-                self.vmsg = "Verify failed: " + datetime.now(timezone(-timedelta(hours=5), name='EST')).strftime("%Y%m%dT%X%z") + "\n\n" + self.vmsg + "\n\n"
+                self.vmsg = "Verify failed: " + datetime.now(timezone(-timedelta(hours=5), name='EST')).strftime("%Y-%m-%dT%X%z") + "\n\n" + self.vmsg + "\n\n"
                 with open(motd_verify_file, 'a+') as vfile:
                     vfile.write(self.vmsg)
                     lfile.write(self.vmsg)
                     vfile.close()
                 print (self.vmsg + '\n')
             else:
-                self.vmsg = "Last successful verify: " + datetime.now(timezone(-timedelta(hours=5), name='EST')).strftime("%Y%m%dT%X%z") + "\n"
+                self.vmsg = "Last successful verify: " + datetime.now(timezone(-timedelta(hours=5), name='EST')).strftime("%Y-%m-%dT%X%z") + "\n"
                 with open(motd_verify_file, 'w+') as vfile:
                     vfile.write(self.vmsg)
                     lfile.write(self.vmsg)
@@ -136,14 +137,14 @@ class p4backup(object):
                 print("ERROR:\n" + stderr)
                 self.cerr = True
                 self.cmsg += stderr
-                self.cmsg = "Checkpoint failed: " + datetime.now(timezone(-timedelta(hours=5), name='EST')).strftime("%Y%m%dT%X%z") + "\n\n" + self.cmsg + "\n\n"
+                self.cmsg = "Checkpoint failed: " + datetime.now(timezone(-timedelta(hours=5), name='EST')).strftime("%Y-%m-%dT%X%z") + "\n\n" + self.cmsg + "\n\n"
                 with open(motd_checkpoint_file, 'a+') as cfile:
                     cfile.write(self.cmsg)
                     lfile.write(self.cmsg)
                     cfile.close()
                 print(self.cmsg + '\n')
             else:
-                self.cmsg = "Last successful checkpoint: " + datetime.now(timezone(-timedelta(hours=5), name='EST')).strftime("%Y%m%dT%X%z") + "\n"
+                self.cmsg = "Last successful checkpoint: " + datetime.now(timezone(-timedelta(hours=5), name='EST')).strftime("%Y-%m-%dT%X%z") + "\n"
                 with open(motd_checkpoint_file, 'w+') as cfile:
                     cfile.write(self.cmsg)
                     lfile.write(self.cmsg)
@@ -159,13 +160,13 @@ class p4backup(object):
             print("ERROR:" + stderr)
             self.terr = True
             self.tmsg += stderr
-            self.tmsg = "Backup failed: " + datetime.now(timezone(-timedelta(hours=5), name='EST')).strftime("%Y%m%dT%X%z") + "\n\n" + self.tmsg + "\n\n"
+            self.tmsg = "Backup failed: " + datetime.now(timezone(-timedelta(hours=5), name='EST')).strftime("%Y-%m-%dT%X%z") + "\n\n" + self.tmsg + "\n\n"
             with open(motd_backup_file, 'a+') as tfile:
                 tfile.write(self.tmsg)
                 lfile.write(self.tmsg)
                 tfile.close()
         else:
-            self.tmsg = "Last successful backup: " + datetime.now(timezone(-timedelta(hours=5), name='EST')).strftime("%Y%m%dT%X%z") + "\n"
+            self.tmsg = "Last successful backup: " + datetime.now(timezone(-timedelta(hours=5), name='EST')).strftime("%Y-%m-%dT%X%z") + "\n"
             with open(motd_backup_file, 'w+') as tfile:
                 tfile.write(self.tmsg)
                 lfile.write(self.tmsg)
@@ -193,13 +194,11 @@ class p4backup(object):
             if args.checkpoint:
                 subject = "Checkpoint"
                 
-            subject += " (" + os.uname()[1] + ")"
-
-            # SUCCESS or FAILURE
+            # SUCCESS or FAILURE including server hostname
             if ( self.verr or self.cerr or self.terr ):
-                subject += " result: FAILURE"
+                subject += " result for " + os.uname()[1] + ": FAILURE"
             else:
-                subject += " result: SUCCESS"
+                subject += " result for " + os.uname()[1] + ": SUCCESS"
 
             # Set subject only once
             m['subject'] = subject
@@ -208,8 +207,11 @@ class p4backup(object):
             m.set_content(self.vmsg + self.cmsg + self.tmsg)
 
             # Send the email
-            if ('gmail.com' in smtphost):
+            if len(access_token) > 0:
                 # GSuite or Google Accounts
+                o = oauth2()
+                access_token = o.get_access_token()
+                
                 auth_string = 'user=%s\1auth=Bearer %s\1\1' % (sender_addr, access_token)
                 auth_string = base64.b64encode(auth_string.encode('ascii')).decode('ascii')
                 
@@ -238,4 +240,7 @@ class p4backup(object):
         else:
             print("destination e-mail is malformed. Check config.\n e-mail supplied was:" + to_addr)
             
-p4backup()
+if __name__ == "__main__":
+    p = P4Backup()
+    args = p.parse_arguments()
+    p.main(args)
