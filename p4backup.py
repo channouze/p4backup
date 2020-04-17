@@ -63,13 +63,13 @@ class P4Backup(object):
         access_token = cfg['gsuite_accesstoken']
 
         with open(log_file, 'a+') as lfile:
-            if args.verify:
-                print("Verifying...")
-                self.verify(p4port, p4user, p4password, motd_verify_file, lfile)
-
             if args.checkpoint:
                 print("Checkpointing...")
                 self.checkpoint(p4port, p4user, p4password, backupprefix, motd_checkpoint_file, lfile)
+                
+            if args.verify:
+                print("Verifying...")
+                self.verify(p4port, p4user, p4password, motd_verify_file, lfile)
     
             if args.backup:
                 print("Backuping...")
@@ -80,13 +80,16 @@ class P4Backup(object):
 
         lfile.close()
     
-    def login(self, p4port, p4user, p4password):
+    def login(self, p4port, p4user, p4password, lfile):
         
         output = Popen(["echo " + p4password + "|" + "p4 -p " + p4port + " -u " + p4user + " login " + "-p"], shell=True, stdout=PIPE, stderr=PIPE)
         stdout, stderr = output.communicate()
             
         if (len(stderr) > 0):
-            print("ERROR: Could not log in. Reason:\n" + stderr)
+            self.tmsg = "ERROR: Could not log in. Reason:\n" + stderr.decode()
+            lfile.write(self.tmsg)
+            print(self.tmsg)
+            
         else:
             print("User " + p4user + " logged in.")
             return stdout.splitlines(False)[-1].decode()
@@ -95,7 +98,7 @@ class P4Backup(object):
         
     def verify(self, p4port, p4user, p4password, motd_verify_file, lfile):
     
-        p4ticket = self.login(p4port, p4user, p4password)
+        p4ticket = self.login(p4port, p4user, p4password, lfile)
         
         if (p4ticket != TICKET_INVALID):
     
@@ -119,17 +122,17 @@ class P4Backup(object):
                     vfile.write(self.vmsg)
                     lfile.write(self.vmsg)
                     vfile.close()
-        
         else:
-            print("Could not process p4 verify.")
+            print("ERROR: Could not process p4 verify.")
+            self.verr = True
     
     def checkpoint(self, p4port, p4user, p4password, backupprefix, motd_checkpoint_file, lfile):
 
-        p4ticket = self.login(p4port, p4user, p4password)
+        p4ticket = self.login(p4port, p4user, p4password, lfile)
         
         if (p4ticket != TICKET_INVALID):
 
-            cstatus = Popen(["p4 -p " + p4port + " -u " + p4user + " admin checkpoint -Z " + backupprefix], stdout=PIPE, stderr=PIPE, universal_newlines=True, shell=True)
+            cstatus = Popen(["p4 -p " + p4port + " -u " + p4user + " -P " + p4ticket + " admin checkpoint -Z " + backupprefix], stdout=PIPE, stderr=PIPE, universal_newlines=True, shell=True)
 
             self.cmsg, stderr = cstatus.communicate()
         
@@ -149,6 +152,10 @@ class P4Backup(object):
                     cfile.write(self.cmsg)
                     lfile.write(self.cmsg)
                     cfile.close()
+                    
+        else:
+            print("ERROR: Could not process p4 checkpoint.")
+            self.cerr = True
     
     def archive(self, p4d, p4root, backupprefix, motd_backup_file, lfile):
     
