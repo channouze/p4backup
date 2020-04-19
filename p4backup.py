@@ -33,7 +33,7 @@ class P4Backup(object):
     
     def main(self, args):
         
-        with open('config.json') as json_data_file:
+        with open(os.path.dirname(os.path.abspath(__file__)) + '/config.json') as json_data_file:
             cfg = json.load(json_data_file)
 
         p4port = cfg['p4port']
